@@ -1,13 +1,14 @@
-import Database from "../Database/index.js";
+import * as dao from "./dao.js";
+
 export default function moduleRoutes(app) {
-  app.get("/api/modules", (req, res) => {
+  app.get("/api/modules", async (req, res) => {
     const modules = Database.modules;
     res.send(modules);
   });
 
-  app.get("/api/modules/:id", (req, res) => {
+  app.get("/api/modules/:id", async (req, res) => {
     const { id } = req.params;
-    const module = Database.modules.find((c) => c._id === id);
+    const module = await dao.findModuleById(id);
     if (!module) {
       res.status(404).send("module not found");
       return;
@@ -15,36 +16,33 @@ export default function moduleRoutes(app) {
     res.send(module);
   });
 
-  app.get("/api/courses/:cid/modules", (req, res) => {
+  app.get("/api/coursemodules/:cid", async (req, res) => {
     const { cid } = req.params;
-    const modules = Database.modules.filter((m) => m.course === cid);
+    const modules = await dao.findModuleByCourse(cid);
     res.send(modules);
   });
 
-  app.delete("/api/modules/:id", (req, res) => {
+  app.delete("/api/modules/:id", async (req, res) => {
     const { id } = req.params;
-    Database.modules = Database.modules.filter((c) => c._id !== id);
+    await dao.deleteModule(id);
     res.sendStatus(204);
   });
 
-  app.put("/api/modules/:mid", (req, res) => {
+  app.put("/api/modules/:mid", async (req, res) => {
     const { mid } = req.params;
-    const moduleIndex = Database.modules.findIndex((m) => m._id === mid);
-    Database.modules[moduleIndex] = {
-      ...Database.modules[moduleIndex],
-      ...req.body,
-    };
+    const module = req.body;
+    delete module._id;
+    const moduleIndex = await dao.updateModule(mid, module)
     res.sendStatus(204);
   });
 
-  app.post("/api/courses/:cid/modules", (req, res) => {
+  app.post("/api/coursemodules/:cid", async (req, res) => {
     const { cid } = req.params;
     const newModule = {
       ...req.body,
       course: cid,
-      _id: new Date().getTime().toString(),
     };
-    Database.modules.push(newModule);
+    await dao.createModule(newModule);
     res.send(newModule);
   });
 }
