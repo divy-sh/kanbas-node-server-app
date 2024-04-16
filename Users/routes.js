@@ -29,7 +29,7 @@ export default function UsersRoutes(app) {
     try {
       const newUser = await dao.createUser(user);
       res.json(newUser);
-    } catch(e) {
+    } catch (e) {
       res.status(400).send('invalid data');
     }
   });
@@ -56,12 +56,11 @@ export default function UsersRoutes(app) {
     }
     try {
       const newUser = await dao.createUser(user);
-      res.json(newUser);
-    } catch(e) {
+      const token = generateToken(newUser);
+      res.json({ token });
+    } catch (e) {
       res.status(400).send('invalid data');
     }
-    const token = generateToken(newUser);
-    res.json({ token });
   });
 
   app.post("/api/users/profile", verifyToken, async (req, res) => {
