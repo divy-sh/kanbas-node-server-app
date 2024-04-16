@@ -9,7 +9,7 @@ export const findUserByCredentials = (username, password) =>
     userModel.findOne({ username, password });
 export const createUser = (user) => {
     user._id = new mongoose.Types.ObjectId()
-    userModel.create(user)};
+    return userModel.create(user)};
 export const updateUser = (id, user) =>
     userModel.updateOne({ _id: id }, { $set: user });
 export const deleteUser = (id) => userModel.deleteOne({ _id: id });
