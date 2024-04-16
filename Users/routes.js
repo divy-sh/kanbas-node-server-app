@@ -37,14 +37,8 @@ export default function UsersRoutes(app) {
   app.put("/api/users/:id", async (req, res) => {
     const id = req.params.id;
     const user = req.body;
-    const token = req.headers.authorization?.split(' ')[1];
-    const decoded = jwtDecode(token)
-    if (user.username == decoded.username) {
-      token = generateToken(user);
-    }
-    delete user._id;
     await dao.updateUser(id, user);
-    res.json({ token });
+    res.status(200).send("success");
   });
 
   app.delete("/api/users/:id", async (req, res) => {
