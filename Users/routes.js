@@ -1,11 +1,8 @@
 import * as dao from "./dao.js";
+import { generateToken, verifyToken, jwtDecode } from "../Jwt.js"
+
 export default function UsersRoutes(app) {
-  app.get("/api/users", async (req, res) => {
-    const currentUser = req.session["currentUser"];
-    if (!currentUser || currentUser.role !== "ADMIN") {
-      res.status(401).send("Unauthorized");
-      return;
-    }
+  app.get("/api/users", verifyToken, async (req, res) => {
     const { role } = req.query;
     if (role) {
       const users = await dao.findUsersByRole(role);
@@ -15,32 +12,43 @@ export default function UsersRoutes(app) {
     const users = await dao.findAllUsers();
     res.json(users);
   });
+
   app.get("/api/users/:id", async (req, res) => {
     const id = req.params.id;
     const user = await dao.findUserById(id);
     res.json(user);
   });
+
   app.post("/api/users", async (req, res) => {
     const user = req.body;
-    const newUser = await dao.createUser(user);
-    res.json(newUser);
+    const existingUser = await dao.findUserByUsername(user.username);
+    if (existingUser) {
+      res.status(400).send("Username already exists");
+      return;
+    }
+    try {
+      const newUser = await dao.createUser(user);
+      res.json(newUser);
+    } catch(e) {
+      res.status(400).send('invalid data');
+    }
   });
+
   app.put("/api/users/:id", async (req, res) => {
     const id = req.params.id;
     const user = req.body;
+    const token = generateToken(user);
     delete user._id;
-    const currentUser = req.session["currentUser"];
-    if (currentUser) {
-      req.session["currentUser"] = user;
-    }
-    const status = await dao.updateUser(id, user);
-    res.json(status);
+    await dao.updateUser(id, user);
+    res.json({ token });
   });
+
   app.delete("/api/users/:id", async (req, res) => {
     const id = req.params.id;
     const status = await dao.deleteUser(id);
     res.send(status);
   });
+
   app.post("/api/users/register", async (req, res) => {
     const user = req.body;
     const existingUser = await dao.findUserByUsername(user.username);
@@ -48,18 +56,27 @@ export default function UsersRoutes(app) {
       res.status(400).send("Username already exists");
       return;
     }
-    const newUser = await dao.createUser(user);
-    req.session["currentUser"] = newUser;
-    res.json(newUser);
+    try {
+      const newUser = await dao.createUser(user);
+      res.json(newUser);
+    } catch(e) {
+      res.status(400).send('invalid data');
+    }
+    const token = generateToken(newUser);
+    res.json({ token });
   });
-  app.post("/api/users/profile", (req, res) => {
-    const currentUser = req.session["currentUser"];
-    if (currentUser) {
-      res.json(currentUser);
+
+  app.post("/api/users/profile", verifyToken, async (req, res) => {
+    const token = req.headers.authorization?.split(' ')[1];
+    const decoded = jwtDecode(token)
+    const user = await dao.findUserByUsername(decoded.username)
+    if (user == null) {
+      res.sendStatus(401);
     } else {
-      res.status(401).send("Unauthorized");
+      res.send(user)
     }
   });
+
   app.post("/api/users/signin", async (req, res) => {
     const credentials = req.body;
     const existingUser = await dao.findUserByCredentials(
@@ -67,14 +84,10 @@ export default function UsersRoutes(app) {
       credentials.password
     );
     if (existingUser) {
-      req.session["currentUser"] = existingUser;
-      res.json(existingUser);
+      const token = generateToken(existingUser);
+      res.json({ token });
     } else {
       res.status(401).send("Invalid credentials");
     }
-  });
-  app.post("/api/users/signout", (req, res) => {
-    req.session.destroy();
-    res.send("Logged out");
   });
 }
